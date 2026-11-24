@@ -225,6 +225,70 @@ jobs:
         with:
           path: public/
 
+  # Single stable required-check candidate for conditional docs/source CI.
+  # When an Owner binds this status, both source failures and unexpected
+  # skips must remain merge-blocking. This job does not itself update rules.
+  verdict:
+    name: Foundation CI verdict
+    needs: [changes, validate]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CLASSIFIER: ${{ needs.changes.result }}
+      HEAVY: ${{ needs.changes.outputs.heavy }}
+      VALIDATION: ${{ needs.validate.result }}
+    steps:
+      - name: Fail-closed CI decision and contract cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          verdict() {
+            local classified="$1" heavy="$2" validation="$3"
+            [[ "$classified" == "success" ]] || return 1
+            case "$heavy:$validation" in
+              false:skipped|true:success) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          # Demonstrate the two accepted states.
+          verdict success false skipped
+          verdict success true success
+
+          # Every other state must refuse, including unexpected skips.
+          for invalid in \
+            success:false:success \
+            success:false:failure \
+            success:false:cancelled \
+            success:true:skipped \
+            success:true:failure \
+            success:true:cancelled \
+            success:missing:success \
+            success::skipped \
+            failure:false:skipped \
+            cancelled:true:success \
+            skipped:false:skipped; do
+            IFS=: read -r a b c <<< "$invalid"
+            if verdict "$a" "$b" "$c"; then
+              echo "Unexpected verdict acceptance: $invalid" >&2
+              exit 1
+            fi
+          done
+
+          {
+            echo "## CI verdict"
+            echo "Classify: $CLASSIFIER"
+            echo "Heavy: $HEAVY"
+            echo "Validation: $VALIDATION"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if ! verdict "$CLASSIFIER" "$HEAVY" "$VALIDATION"; then
+            echo "Fail closed: required classification/validation failed." >&2
+            exit 1
+          fi
+
   deploy-pages:
     name: Deploy to GitHub Pages
     needs: validate
