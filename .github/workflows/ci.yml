@@ -37,12 +37,36 @@ jobs:
         run: |
           set -euo pipefail
           heavy=true
-          changed="$RUNNER_TEMP/uor-changed-paths.txt"
+          changed="$RUNNER_TEMP/uor-changed-paths.z"
+
+          # Only additions/modifications of exact allowlisted docs may
+          # skip heavy source verification. Deletions and renames fail closed.
+          allow_doc_change() {
+            local status="$1" path="$2"
+            case "$status:$path" in
+              M:README.md|A:README.md|\
+              M:assets/readme-banner.svg|A:assets/readme-banner.svg|\
+              M:assets/readme-banner-PLACEHOLDER.png|\
+              A:assets/readme-banner-PLACEHOLDER.png|\
+              M:MAINTAINERS.md|A:MAINTAINERS.md) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+          # Classifier regression cases; these run before diff evaluation.
+          allow_doc_change A MAINTAINERS.md
+          allow_doc_change M MAINTAINERS.md
+          if allow_doc_change D MAINTAINERS.md ||
+             allow_doc_change M Cargo.toml ||
+             allow_doc_change M .github/workflows/ci.yml ||
+             allow_doc_change T MAINTAINERS.md; then
+            echo "Classifier negative case unexpectedly passed" >&2
+            exit 1
+          fi
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             # checkout uses GitHub's PR merge commit. First parent is the
             # target branch, so the complete PR diff is inspected.
             if git rev-parse --verify 'HEAD^1' >/dev/null 2>&1 &&
-               git diff --name-only --no-renames 'HEAD^1' HEAD > "$changed"; then
+               git diff --name-status -z --no-renames 'HEAD^1' HEAD > "$changed"; then
               heavy=false
             fi
           elif [[ "$EVENT_NAME" == "push" &&
@@ -52,23 +76,27 @@ jobs:
             # pushes may contain several commits. A failed fetch is a
             # conservative full-run, never a silent docs-only classification.
             if git fetch --no-tags --depth=1 origin "$BEFORE_SHA" &&
-               git diff --name-only --no-renames "$BEFORE_SHA" HEAD > "$changed"; then
+               git diff --name-status -z --no-renames "$BEFORE_SHA" HEAD > "$changed"; then
               heavy=false
             fi
           fi
 
           if [[ "$heavy" == "false" ]]; then
             [[ -s "$changed" ]] || heavy=true
-            while IFS= read -r path; do
-              case "$path" in
-                README.md|assets/readme-banner.svg|assets/readme-banner-PLACEHOLDER.png) ;;
-                *) heavy=true ;;
-              esac
+            while IFS= read -r -d '' status; do
+              if ! IFS= read -r -d '' path; then
+                echo "Malformed name-status diff; fail closed" >&2
+                heavy=true
+                break
+              fi
+              printf '%s %s\n' "$status" "$path"
+              if ! allow_doc_change "$status" "$path"; then
+                heavy=true
+              fi
             done < "$changed"
           fi
           echo "heavy=$heavy" >> "$GITHUB_OUTPUT"
           echo "Full validation needed: $heavy"
-          if [[ -f "$changed" ]]; then cat "$changed"; fi
 
       - name: Check the public README and local assets
         run: python3 scripts/ci/check-readme.py
