@@ -11,7 +11,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-718096)](LICENSE)
 
 [Why UOR](#why-uor-exists) · [What it provides](#what-this-repository-provides) ·
-[Get started](#get-started) · [Evidence](#documentation-and-evidence)
+[Get started](#get-started) · [Evidence](#documentation-and-evidence) ·
+[Maintainers](MAINTAINERS.md)
 
 ## Why UOR exists
 
@@ -73,6 +74,11 @@ Advanced readers can explore the algebraic structure, including modular arithmet
 The [framework wiki](https://github.com/UOR-Foundation/UOR-Framework/wiki) records normative architecture and design decisions. The [developer reference](docs/DEVELOPER_REFERENCE.md) explains the repository's generated interfaces, formats, and development commands. The [conformance guide](docs/content/guides/conformance.md) describes what the validation tools check.
 
 A passing test or build means the checks that ran passed. It is not a blanket guarantee about every possible application built with UOR.
+
+For contributor attribution and the current state of maintainer appointments,
+see the [maintainer evidence directory](MAINTAINERS.md). It records accepted
+contribution evidence and unresolved roles, without granting GitHub or Discord
+permissions.
 
 ## Citation and license
 
