@@ -323,3 +323,39 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4
+
+      # GitHub Pages reporting success proves upload, not that visitors can
+      # fetch the deployed site. Verify the canonical project URL, stylesheet,
+      # search index and a deep documentation route from an internet runner.
+      - name: Smoke-test published Pages routes and assets
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deploy.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          base="/${GITHUB_REPOSITORY#*/}"
+          site="${PAGE_URL%/}"
+          if [[ ! "$site" =~ ^https?://[^/]+/ ]]; then
+            echo "Pages deploy action returned an invalid site URL: $site" >&2
+            exit 1
+          fi
+          if [[ "$site" != *"$base" ]]; then
+            echo "Pages URL '$site' does not end with canonical base '$base'" >&2
+            exit 1
+          fi
+          tmp=$(mktemp -d)
+          trap 'rm -rf "$tmp"' EXIT
+          fetch_page() {
+            curl --fail --silent --show-error --location \\
+              --max-time 20 --retry 10 --retry-delay 6 --retry-all-errors \\
+              "$1" -o "$2"
+            test -s "$2"
+          }
+          fetch_page "$site/" "$tmp/index.html"
+          grep -Fq 'UOR Foundation' "$tmp/index.html"
+          grep -Fq "href=\"${base}/css/style.css\"" "$tmp/index.html"
+          fetch_page "$site/css/style.css" "$tmp/style.css"
+          fetch_page "$site/search-index.json" "$tmp/search-index.json"
+          fetch_page "$site/docs/guides/psi-pipeline.html" "$tmp/guide.html"
+          grep -Fq 'The psi Pipeline' "$tmp/guide.html"
+          echo "Live GitHub Pages smoke passed for $site/"
