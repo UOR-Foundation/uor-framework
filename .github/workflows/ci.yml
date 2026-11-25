@@ -206,7 +206,7 @@ jobs:
       - name: Generate documentation
         run: cargo run --bin uor-docs
         env:
-          PUBLIC_BASE_PATH: /UOR-Framework
+          PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
 
       - name: Verify generated developer reference has no drift
         run: git diff --exit-code -- docs/DEVELOPER_REFERENCE.md
@@ -214,12 +214,27 @@ jobs:
       - name: Generate website
         run: cargo run --bin uor-website
         env:
-          PUBLIC_BASE_PATH: /UOR-Framework
+          PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
 
       - name: Run conformance suite
         run: cargo run --bin uor-conformance
         env:
-          PUBLIC_BASE_PATH: /UOR-Framework
+          PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+
+      # GitHub Pages uses the repository slug as its project path. Reject
+      # generated HTML/assets aimed at a stale or differently cased path.
+      - name: Check generated Pages project paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="/${GITHUB_REPOSITORY#*/}"
+          test -s public/index.html
+          test -s public/css/style.css
+          test -s public/js/search.js
+          test -s public/search-index.json
+          grep -Fq "href=\"${base}/css/style.css\"" public/index.html
+          grep -Fq "href=\"${base}/\"" public/index.html
+          grep -Fq "${base}/search-index.json" public/js/search.js
 
       - name: Upload pages artifact
         # Only deploy Pages on pushes to main (not PRs)
