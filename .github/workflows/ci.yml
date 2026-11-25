@@ -346,9 +346,7 @@ jobs:
           tmp=$(mktemp -d)
           trap 'rm -rf "$tmp"' EXIT
           fetch_page() {
-            curl --fail --silent --show-error --location \\
-              --max-time 20 --retry 10 --retry-delay 6 --retry-all-errors \\
-              "$1" -o "$2"
+            curl --fail --silent --show-error --location --max-time 20 --retry 10 --retry-delay 6 --retry-all-errors "$1" -o "$2"
             test -s "$2"
           }
           fetch_page "$site/" "$tmp/index.html"
