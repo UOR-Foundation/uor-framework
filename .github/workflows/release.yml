@@ -77,17 +77,17 @@ jobs:
       - name: Generate documentation
         run: cargo run --bin uor-docs
         env:
-          PUBLIC_BASE_PATH: /UOR-Framework
+          PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
 
       - name: Generate website
         run: cargo run --bin uor-website
         env:
-          PUBLIC_BASE_PATH: /UOR-Framework
+          PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
 
       - name: Run conformance suite
         run: cargo run --bin uor-conformance
         env:
-          PUBLIC_BASE_PATH: /UOR-Framework
+          PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
 
       - name: Verify foundation crate packaging
         run: cargo publish --dry-run --allow-dirty -p uor-foundation
