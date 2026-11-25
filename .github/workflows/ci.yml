@@ -10,9 +10,12 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
+# Keep main's proof-bearing build and publication alive when a later docs
+# commit arrives. Cancel stale pull-request builds only.
+# Each workflow has its own concurrency group to avoid cross-workflow cancellation.
 concurrency:
-  group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
